@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>HTML5-刮刮卡</title>
+<script src='jq/jquery.min.js'></script>
+<script src="../mouseEvents封装/eventTools.js"></script>
+
+<style type="text/css">
+	*{
+		padding: 0;
+		margin: 0;
+		list-style: none;
+	}
+	body{
+		position: relative;
+		box-sizing: border-box;
+		padding-top: 50px;
+	}
+	.header{
+		background: #e4393c;
+		width:600px;
+		height: 155px;
+		margin: 0 auto;
+		padding-top: 20px;
+	}
+	.ggl{
+		position: relative;
+		width: 400px;
+		height: 90px;
+		background: url(ggl.png) no-repeat center center;
+		background-size: 100% 100%;
+		margin: 0 auto;
+	}
+	.canvas{
+		position:absolute;
+		top:2px;
+		left:3%;
+		line-height:82px;
+		text-align:center;
+		z-index: 2;		
+	}
+	.info{
+		position:absolute;
+		top:2px;
+		width:100%;
+		height:82px;
+		text-align:center;
+	}
+	.info span{
+		display: block;
+		font-size: 18px;
+	}
+	#prompt{
+		line-height: 40px;
+	}
+	.btn{
+		position: relative;
+		width: 36%;
+		height: 35px;
+		line-height: 35px;
+		background: #df412b;
+		color: #fff;
+		border-radius: 5px;
+		margin: 0 auto;
+		z-index: 1;
+	}
+	
+	.num{
+		width: 100%;
+		height: 30px;
+		line-height: 30px;
+		text-align: center;
+		font-size:14px;
+		margin-top: 5px;
+	}
+	#ok, #no{display: none;}
+</style>
+</head>
+<body>
+	<div class='header'>
+		<!-- 刮开后看到的里面的中奖内容 -->
+		<div class="ggl" id="top">
+			<div class="info" id="prize">
+				<span id="prompt"></span>
+				<span class="btn" id="ok">领取奖品</span>
+				<span class="btn" id="no">再来一次</span>
+			</div>
+			<canvas id="canvas1" class="canvas" height='82' width='376'></canvas>
+		</div>
+		<!-- 剩下划卡的次数 -->
+		<div class="num">
+			您还有<span class="num1"></span>次刮卡机会
+		</div>
+	</div>
+</body>
+<script>
+	/*
+	canvas灰色,刮到一半,消失
+	通过像素判断刮了多少
+	中奖与否的概率,
+	中奖->按钮跳转中奖页面alert
+	 */
+	
+	//面向对象实现刮刮乐 经常用到this
+	var t=window.ggl;
+	var ggl={
+		c1:null, //canvas DOM元素
+		ctx:null, //画布
+		c1_width:0,
+		c1_height:0,
+		ismousedown:false, //表示鼠标是否按下
+		is_ok:false, //是否刮完超过一半
+		num:1, //还剩下刮的机会,总共3次
+		init:function(){ //初始化的方法
+			this.c1=document.getElementById('canvas1')
+			this.ctx=this.c1.getContext("2d");
+			this.c1_width=this.c1.width;
+			this.c1_height=this.c1.height;
+			this.initCanvas();
+			eventTools.mouseEvent(this.c1,this.down,this.move,this.up);
+			this.initNum();
+			//1.初始化画布 方法
+			//1.初始化奖品
+			//3.调用eventTools.js事件方法
+		},
+		initCanvas:function(){
+			//在目标图像上显示原图像, this.ctx.globleCompositeOperation:source-over
+			//设置绘制颜色 #797979;
+			//绘制实心矩形,宽高=画布
+			//设置绘制文字 字体 居中对齐 颜色
+			//文字内容 刮一刮 
+			//在原图像上显示目标图像 globleCompositeOperation:destination-out
+			
+			this.ctx.globalCompositeOperation='source-over';
+			this.ctx.fillStyle='#797979';
+			this.ctx.fillRect(0, 0, 376, 82);
+
+			this.ctx.font='50px microsoft yahei';
+			this.ctx.textAlign='center';
+			this.ctx.textBaseline='center';
+
+			this.ctx.fillStyle='palegreen';
+	    	
+	    
+			this.ctx.fillText('刮一刮',170,50);
+			this.ctx.globalCompositeOperation='destination-out';
+		},
+
+		down:function(e){
+			console.log(e);
+			// 结束上一个事件
+			e.preventDefault;
+			//设置鼠标已按下
+			ggl.ismousedown=true;
+		},
+		move:function(e){
+			e.preventDefault;
+			
+			if(ggl.ismousedown){//鼠标已经按下,移动时圆点随之移动
+				// 计算坐标
+				/*
+				e.point坐标是相对于浏览器左上角的
+				offsetLeft属性值是DOM元素相对于浏览器左上角的*/
+				var offsL=document.querySelector('.ggl').offsetLeft;
+				var offsT=document.querySelector('.ggl').offsetTop;
+				var x=e.point.dx-offsL,y=e.point.dy-offsT;
+				//绘制圆
+				ggl.ctx.beginPath();
+				ggl.ctx.arc(x, y, 20, 0, Math.PI*2);
+				ggl.ctx.closePath();
+				ggl.ctx.fillStyle='lavender';
+				ggl.ctx.fill(); 
+			}
+			
+		},
+		up:function(e){
+			e.preventDefault;
+			//判断当前刮了多少
+			var a=ggl.ctx.getImageData(0,0,376,82);
+			// console.log(a.data)
+			for(var i=0,sum=0;i<a.data.length;i+=4){
+				if(a.data[i]===0){
+					sum++;
+				};
+			}; 
+
+			if (sum>a.data.length/8) {
+				ggl.is_ok=true;
+				$('.num1').html(3-ggl.num);
+				ggl.ctx.clearRect(0,0,376,82);
+				$('.btn').css('z-index','3');//改变按钮的index
+				if ($('#ok').css('display')=='block'){
+					$('.num1').html('0');
+				}
+			};
+			
+			//把ismousedown设为false;
+			ggl.ismousedown=false;
+		},
+		//控制刮奖次数,随机生成奖品
+		initNum:function(){
+			$('.num1').html(4-ggl.num);
+			//获取随机数
+			function getRandom(a,b){
+				return (Math.floor(Math.random()*(b-a))+a)
+			};
+			var r=getRandom(1,100);
+			//把按钮的z-index值设为2
+			$('.btn').css('z-index','2')
+			$('#ok').css('display', 'none');
+			$('#no').css('display', 'none');
+			//初始化is_ok
+			ggl.is_ok=false;
+			//控制中奖概率
+			if(33*ggl.num>r){
+				//获取id为prompt的内容,设置为恭喜你 
+				$('#prompt').html('恭喜亲~中奖啦~');
+				$('#ok').css('display', 'block');
+				
+				$('#ok').click(function(){
+					alert('哎呦,奖品领完了呢')
+					$('#ok').unbind('click');
+					ggl.onceAgain();
+				})
+			}else{
+				$('#prompt').html('哎呀没有中呢~');
+				$('#no').css('display', 'block');
+				ggl.onceAgain();
+			}
+		},
+		onceAgain:function(){
+			//没中奖再来一次
+			$('#no').click(function(){
+				if(ggl.num>=4){
+					alert('您的次数已用完')
+				}else{
+					ggl.num++;
+					//初始化按钮
+					$('#ok').css('display', 'none');
+					$('#no').css('display', 'none');
+					ggl.initCanvas();//重新绘制画布
+					ggl.initNum();
+				}
+			})
+		}
+
+	}
+		window.onload=function(){
+			ggl.init();
+		}
+		
+			
+</script>
+</html>

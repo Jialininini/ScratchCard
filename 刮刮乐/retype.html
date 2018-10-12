@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Document</title>
+	<script src="jq/jquery.min.js"></script>
+	<script src="../mouseEvents封装/eventTools.js"></script>
+	<style type='text/css'>
+		*{
+			padding:0;
+			margin:0;
+			list-style:none;
+		}
+		body{
+			position:relative;
+			box-sizing:border-box;
+			padding-top: 50px;
+		}
+		.header{
+			background: #e4393c;
+			width: 600px;
+			height: 155px;
+			margin:0 auto;
+			padding-top: 20px;
+		}
+		.ggl{
+			position:relative;
+			width:400px;
+			height: 90px;
+			background: url(ggl.png) no-repeat center center;
+			background-size: 100% 100%;
+			margin:0 auto;
+		}
+		.canvas{
+			position:absolute;
+			top:2px;
+			left:3%;
+			line-height: 82px;
+			text-align: center;
+			z-index: 2;
+		}
+		.info{
+			position:absolute;
+			top:2px;
+			width: 100%;
+			height:82px;
+			text-align: center;
+		}
+		.info span{
+			display: block;
+			font-size: 18px;
+		}
+		#prompt{
+			line-height: 40px;
+		}
+		.btn{
+			position: relative;
+			width: 36%;
+			height: 35px;
+			line-height: 35px;
+			background: #df412b;
+			color: #fff;
+			border-radius: 5px;
+			margin:0 auto;
+			z-index: 1;
+		}
+		.num{
+			width: 100%;
+			height: 30px;
+			line-height: 30px;
+			text-align: center;
+			font-size: 14px;
+			margin-top: 5px;
+		}
+		#ok,#no{display: none;}
+	</style>
+</head>
+<body>
+	<div class="header">
+		<!-- 刮开后看到的中奖内容 -->
+		<div class="ggl" id="top">
+			<div class="info" id="prize">
+			<span id='prompt'></span>
+			<span class='btn' id='ok'>领取奖品</span>
+			<span class='btn' id='no'>再来一次</span>
+		</div>
+		<canvas id='canvas1' class='canvas' height='82' width='376'></canvas>
+	</div>
+	<!-- 剩下划卡的次数 -->
+		<div class='num'>
+			您还有<span class='num1'></span>次刮奖机会
+		</div>
+	</div>
+</body>
+<script>
+	/*
+	canvas灰色,刮到一半,消失
+	通过像素判断刮了多少
+	中奖与否的概率
+	中奖->按钮alert
+	 */
+	
+	var t=window.ggl;
+	var ggl={
+		c1:null,
+		ctx:null,
+		ismousedown:false,
+		is_ok:false,
+		num:1,
+		init:function(){
+			this.c1=document.getElementById('canvas1');
+			this.ctx=this.c1.getContext("2d");
+			this.initCanvas();
+			eventTools.mouseEvent(this.c1,this.down,this.move,this.up);
+			this.initNum()
+		},
+		/*初始化画布层*/ 
+		initCanvas:function(){
+			this.ctx.globalCompositeOperation='source-over';
+			this.ctx.fillStyle='#ccc';
+			this.ctx.fillRect(0,0,376,82);
+			this.ctx.font='50px microsoft yahei';
+			this.ctx.textAlign='center';
+			this.ctx.textBaseLine='center';
+			this.ctx.fillStyle='maroon';
+			this.ctx.fillText('刮我吧', 170,50);
+			this.ctx.globalCompositeOperation='destination-out';
+		},
+
+		down:function(e){
+			e.preventDefault;
+			ggl.ismousedown=true;
+		},
+		move:function(e){
+			e.preventDefault;
+			if (ggl.ismousedown) {
+				var offsL=document.querySelector('.ggl').offsetLeft;
+				var offsT=document.querySelector('.ggl').offsetTop;
+				var x=e.point.dx-offsL,y=e.point.dy-offsT;
+				ggl.ctx.beginPath();
+				ggl.ctx.arc(x,y,20,0,Math.PI*2);
+				ggl.ctx.closePath();
+				ggl.ctx.fillStyle='snow';
+				ggl.ctx.fill();
+			};
+		},
+		up:function(e){
+			e.preventDefault;
+			var a=ggl.ctx.getImageData(0,0,376,82);
+			for(var i=0,sum=0;i<a.data.length;i+=4){
+				if (a.data[i]==0) { //擦掉部分rgba==0000
+					sum++;
+				};
+			}
+			if (sum>a.data.length/8) {
+				ggl.is_ok=true;
+				$('.num1').html(3-ggl.num);
+				ggl.ctx.clearRect(0,0,376,82);
+				if ($('#ok').css('display')=='block') {
+					$('.num1').html('0');
+				};
+			};
+			if (ggl.is_ok) {
+				$('.btn').css('z-index','3')
+			};	
+			//抬起鼠标,ismousedown状态还原
+			ggl.ismousedown=false;
+		},
+
+		//控制刮奖次数,随机生成奖品
+		initNum:function(){
+			$('.num1').html(4-ggl.num);
+			function getRandom(a,b){
+				return (Math.floor(Math.random()*(b-a))+a)
+			};
+			var r=getRandom(1,100);
+			$('.btn').css('z-index','2');
+			$('#ok').css('display', 'none');
+			$('#no').css('display', 'none');
+			ggl.is_ok=false;
+			if (33*ggl.num>r) {
+				$('#prompt').html('恭喜哇,中奖啦');
+				$('#ok').css('display', 'block');
+				$('#ok').click(function() {
+					alert('不好意思,奖品领完了');
+					$('#ok').unbind('click');
+					ggl.onceAgain();
+				});
+			}else{
+				$('#prompt').html('哎呀这次没有中呢');
+				$('#no').css('display', 'block');
+				ggl.onceAgain();
+			}
+
+		},
+
+		onceAgain:function(){
+			$('#no').click(function(){
+				if (ggl.num>=4) {
+					alert('您的次数已用完')
+				}else{
+					ggl.num++;
+					$('#ok').css('display', 'none');
+					$('#no').css('display', 'none');
+					ggl.initCanvas();
+					ggl.initNum();
+				}
+			})
+		}
+
+
+
+		
+	}
+
+	window.onload=function(){
+		ggl.init();
+	}
+</script>
+</html>
